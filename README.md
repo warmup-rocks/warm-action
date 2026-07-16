@@ -1,5 +1,7 @@
 # warmup.rocks — CDN Cache Warmer Action
 
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-warmup.rocks%20CDN%20Cache%20Warmer-dc0000?logo=github)](https://github.com/marketplace/actions/warmup-rocks-cdn-cache-warmer)
+
 Trigger a cache warm run on [warmup.rocks](https://warmup.rocks) right after your
 deploy. Deploys purge your CDN cache — this Action makes sure it's hot again
 before the first visitor arrives, instead of waiting for the next scheduled run.
