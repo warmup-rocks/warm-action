@@ -1,7 +1,7 @@
 name: 'warmup.rocks — CDN Cache Warmer'
 description: >-
-  Trigger a cache warm run on warmup.rocks right after your deploy,
-  so your CDN edge cache is hot again before the first visitor arrives.
+  Re-warm your CDN edge cache on warmup.rocks right after every deploy —
+  hot again before the first visitor arrives.
 author: 'warmup.rocks'
 
 branding:
