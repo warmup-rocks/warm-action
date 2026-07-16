@@ -1,0 +1,69 @@
+name: 'warmup.rocks — CDN Cache Warmer'
+description: >-
+  Trigger a cache warm run on warmup.rocks right after your deploy,
+  so your CDN edge cache is hot again before the first visitor arrives.
+author: 'warmup.rocks'
+
+branding:
+  icon: 'zap'
+  color: 'red'
+
+inputs:
+  hook-url:
+    description: >-
+      Your project's deploy-hook URL from warmup.rocks
+      (Project → Settings → Deploy hook). Store it as an encrypted
+      repository secret, e.g. WARMUP_HOOK_URL.
+    required: true
+
+outputs:
+  run-id:
+    description: 'ID of the warm run that was started (empty if skipped).'
+    value: ${{ steps.trigger.outputs.run-id }}
+  skipped:
+    description: >-
+      Non-empty if no new run was started: "already-running" while a run is
+      in progress, "cooldown" within 5 minutes of the previous hook run.
+    value: ${{ steps.trigger.outputs.skipped }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Trigger warm run
+      id: trigger
+      shell: bash
+      env:
+        HOOK_URL: ${{ inputs.hook-url }}
+      run: |
+        set -euo pipefail
+
+        if [[ ! "$HOOK_URL" =~ ^https:// ]]; then
+          echo "::error::hook-url must be an https:// URL (got something else — did the secret get set?)"
+          exit 1
+        fi
+
+        response="$(curl -sS -X POST --max-time 30 --retry 3 --retry-all-errors \
+          -H 'user-agent: warmup-rocks/warm-action' \
+          -w '\n%{http_code}' "$HOOK_URL")" || {
+          echo "::error::Could not reach the deploy hook (network error)."
+          exit 1
+        }
+
+        code="${response##*$'\n'}"
+        body="${response%$'\n'*}"
+
+        if [[ "$code" != "200" ]]; then
+          echo "::error::Deploy hook returned HTTP $code: $body"
+          exit 1
+        fi
+
+        run_id="$(echo "$body" | sed -n 's/.*"runId":[[:space:]]*\([0-9]*\).*/\1/p')"
+        skipped="$(echo "$body" | sed -n 's/.*"skipped":[[:space:]]*"\([^"]*\)".*/\1/p')"
+        echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+        echo "skipped=$skipped" >> "$GITHUB_OUTPUT"
+
+        if [[ -n "$skipped" ]]; then
+          echo "Warm run skipped ($skipped) — a recent or running warm pass already covers this deploy."
+        else
+          echo "Warm run #$run_id started — your edge cache is being re-warmed."
+        fi
